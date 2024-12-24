@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Decentralized Library</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js" type="application/javascript"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        input, button {
+            margin: 10px 0;
+            padding: 10px;
+            width: 100%;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #bookList, #borrowedBooks {
+            margin-top: 20px;
+        }
+        .book-item {
+            background-color: #f1f1f1;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Decentralized Library</h1>
+        
+        <div id="connectWallet">
+            <button onclick="connectWallet()">Connect Wallet</button>
+        </div>
+
+        <div id="librarian" style="display:none;">
+            <h2>Librarian Section</h2>
+            <input type="text" id="bookTitle" placeholder="Book Title">
+            <input type="text" id="bookAuthor" placeholder="Book Author">
+            <button onclick="addBook()">Add Book</button>
+        </div>
+
+        <div id="userSection" style="display:none;">
+            <h2>Available Books</h2>
+            <div id="bookList"></div>
+
+            <h2>Your Borrowed Books</h2>
+            <div id="borrowedBooks"></div>
+        </div>
+    </div>
+
+    <script>
+        // Contract Address and ABI (Replace with your deployed contract address)
+        const CONTRACT_ADDRESS = '0x182e9a00F140588d35B868ed728BDe4518704280';
+        const CONTRACT_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_author",
+				"type": "string"
+			}
+		],
+		"name": "addBook",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "bookId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "author",
+				"type": "string"
+			}
+		],
+		"name": "BookAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "bookId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "borrower",
+				"type": "address"
+			}
+		],
+		"name": "BookBorrowed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "bookId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "returner",
+				"type": "address"
+			}
+		],
+		"name": "BookReturned",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_bookId",
+				"type": "uint256"
+			}
+		],
+		"name": "borrowBook",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_bookId",
+				"type": "uint256"
+			}
+		],
+		"name": "returnBook",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "bookIds",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "books",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "author",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "currentOwner",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "isAvailable",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getTotalBooks",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "getUserBorrowedBooks",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_bookId",
+				"type": "uint256"
+			}
+		],
+		"name": "isBookAvailable",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "librarian",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "userBorrowedBooks",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+        let contract;
+        let signer;
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    // Request account access
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = provider.getSigner();
+                    const address = await signer.getAddress();
+                    
+                    // Initialize contract
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+                    // Check if user is librarian
+                    const librarian = await contract.librarian();
+                    if (address.toLowerCase() === librarian.toLowerCase()) {
+                        document.getElementById('librarian').style.display = 'block';
+                    }
+
+                    document.getElementById('userSection').style.display = 'block';
+                    document.getElementById('connectWallet').style.display = 'none';
+
+                    // Load books and borrowed books
+                    loadBooks();
+                    loadBorrowedBooks();
+
+                } catch (error) {
+                    console.error("Could not connect wallet", error);
+                    alert("Failed to connect wallet");
+                }
+            } else {
+                alert('Please install MetaMask!');
+            }
+        }
+
+        async function addBook() {
+            const title = document.getElementById('bookTitle').value;
+            const author = document.getElementById('bookAuthor').value;
+
+            try {
+                const tx = await contract.addBook(title, author);
+                await tx.wait();
+                alert('Book added successfully!');
+                loadBooks();
+            } catch (error) {
+                console.error('Error adding book:', error);
+                alert('Failed to add book');
+            }
+        }
+
+        async function borrowBook(bookId) {
+            try {
+                const tx = await contract.borrowBook(bookId);
+                await tx.wait();
+                alert('Book borrowed successfully!');
+                loadBooks();
+                loadBorrowedBooks();
+            } catch (error) {
+                console.error('Error borrowing book:', error);
+                alert('Failed to borrow book');
+            }
+        }
+
+        async function returnBook(bookId) {
+            try {
+                const tx = await contract.returnBook(bookId);
+                await tx.wait();
+                alert('Book returned successfully!');
+                loadBooks();
+                loadBorrowedBooks();
+            } catch (error) {
+                console.error('Error returning book:', error);
+                alert('Failed to return book');
+            }
+        }
+
+        async function loadBooks() {
+            const bookListElement = document.getElementById('bookList');
+            bookListElement.innerHTML = '';
+
+            try {
+                const totalBooks = await contract.getTotalBooks();
+
+                for (let i = 1; i <= totalBooks; i++) {
+                    const book = await contract.books(i);
+                    const isAvailable = await contract.isBookAvailable(i);
+
+                    const bookElement = document.createElement('div');
+                    bookElement.classList.add('book-item');
+                    bookElement.innerHTML = `
+                        <strong>${book.title}</strong> by ${book.author}
+                        <br>Status: ${isAvailable ? 'Available' : 'Borrowed'}
+                        ${isAvailable ? `<button onclick="borrowBook(${i})">Borrow</button>` : ''}
+                    `;
+                    bookListElement.appendChild(bookElement);
+                }
+            } catch (error) {
+                console.error('Error loading books:', error);
+            }
+        }
+
+        async function loadBorrowedBooks() {
+            const borrowedBooksElement = document.getElementById('borrowedBooks');
+            borrowedBooksElement.innerHTML = '';
+
+            try {
+                const address = await signer.getAddress();
+                const borrowedBookIds = await contract.getUserBorrowedBooks(address);
+
+                for (let bookId of borrowedBookIds) {
+                    const book = await contract.books(bookId);
+
+                    const bookElement = document.createElement('div');
+                    bookElement.classList.add('book-item');
+                    bookElement.innerHTML = `
+                        <strong>${book.title}</strong> by ${book.author}
+                        <button onclick="returnBook(${bookId})">Return Book</button>
+                    `;
+                    borrowedBooksElement.appendChild(bookElement);
+                }
+            } catch (error) {
+                console.error('Error loading borrowed books:', error);
+            }
+        }
+    </script>
+</body>
+</html>
